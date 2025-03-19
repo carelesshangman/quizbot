@@ -2,209 +2,30 @@ const { Client, GatewayIntentBits, Collection, REST, Routes, ButtonInteraction, 
     ActionRowBuilder, ButtonBuilder
 } = require('discord.js');
 const { CronJob } = require('cron');
-const { createCanvas, loadImage } = require('canvas');
-
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
-const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
-
-
-if (!TOKEN || !CLIENT_ID) {
-    console.error("❌ Missing TOKEN or CLIENT_ID in .env file!");
-    process.exit(1);
-}
+const REGISTERED_USERS_FILE = path.join(__dirname, 'registered_users.csv');
+const USER_SCORES_FILE = path.join(__dirname, 'user_scores.csv');
+const SLOVENIA_TIMEZONE = 'Europe/Ljubljana';
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages] });
 client.commands = new Collection();
 
-const generateProfileImage = async (user) => {
-    const canvas = createCanvas(500, 500);
-    const ctx = canvas.getContext('2d');
-
-    // Load background image
-    const background = await loadImage('sanic.png'); // Replace with your background image
-    ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
-
-    // Load user avatar
-    const avatar = await loadImage(user.displayAvatarURL({ format: 'png', size: 256 }));
-    const avatarSize = 256;
-    const avatarX = (canvas.width - avatarSize) / 2;
-    const avatarY = (canvas.height - avatarSize) / 2;
-
-    // Draw avatar with circular clipping
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(canvas.width / 2, canvas.height / 2, avatarSize / 2, 0, Math.PI * 2, true);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(avatar, avatarX, avatarY, avatarSize, avatarSize);
-    ctx.restore();
-
-    return new AttachmentBuilder(canvas.toBuffer(), { name: 'profile.png' });
-};
-
-const triviaQuestions = [
-    {
-        question: "What is Sonic's full name?",
-        options: ["Sonic Maurice Hedgehog", "Sonic Miles Prower", "Blue Streak Hedgehog"],
-        answer: "Sonic Maurice Hedgehog",
-        explanation: "Sonic's middle name, Maurice, was confirmed in the Archie Comics. However, 'Ogilvie' was never officially confirmed in any media.",
-        references: ["Archie Sonic the Hedgehog #53 (1997)"],
-        color: "#005BE2",
-        image: "https://cdn.discordapp.com/attachments/1343613169959960760/1351280482985316405/sonic.png?ex=67d9cd84&is=67d87c04&hm=f00b6b836be7ab42bd111729286624a1574e1fa92010513657c53c5cf3a41b96&"
-    },
-    {
-        question: "Who is Knuckles the last of?",
-        options: ["The Echidna Clan", "The Dark Legion", "The Babylon Rogues"],
-        answer: "The Echidna Clan",
-        explanation: "Knuckles is the last known member of the Echidna Clan, an ancient tribe that once guarded the Master Emerald.",
-        references: ["Sonic Adventure (1998)", "Sonic the Hedgehog 3 (1994)"],
-        color: "#DC143C",
-        image: "https://media.discordapp.net/attachments/1343613169959960760/1351280040553218068/knuckles.png?ex=67d9cd1b&is=67d87b9b&hm=7ef983b883f98dd42c49edbd3a8daa63bbd8b6d6b16c59d9e0e25fff2cad732b&=&format=webp&quality=lossless"
-    },
-    {
-        question: "What is Tails' real first name?",
-        options: ["Miles", "Ray", "Charles"],
-        answer: "Miles",
-        explanation: "Tails' real first name is Miles, as confirmed in various Sonic games and media. 'Tails' is just his nickname.",
-        references: ["Sonic the Hedgehog 2 (1992)", "Sonic Adventure (1998)"],
-        color: "#FFCC00",
-        image: "https://media.discordapp.net/attachments/1343613169959960760/1351280039802703995/tails.png?ex=67d9cd1b&is=67d87b9b&hm=b0c329ba226acf2c36d409afe67bcea8e2f0b73536aa4c326f02708a228f3f6e&=&format=webp&quality=lossless"
-    },
-    {
-        question: "What is Shadow the Hedgehog's famous motto?",
-        options: ["I'm the ultimate lifeform!", "Chaos is power!", "You're too slow!"],
-        answer: "I'm the ultimate lifeform!",
-        explanation: "Shadow refers to himself as 'the ultimate lifeform' due to being created by Dr. Gerald Robotnik.",
-        references: ["Sonic Adventure 2 (2001)", "Shadow the Hedgehog (2005)"],
-        color: "#2E2E2E",
-        image: "https://cdn.discordapp.com/attachments/1343613169959960760/1351284798278078614/shadow.png?ex=67d9d189&is=67d88009&hm=9150f4c95e6908c0350be87fd34c4ad5fd36a435fd39d13c4939fcc53ff4360d&"
-    },
-    {
-        question: "Which group is Rouge the Bat affiliated with?",
-        options: ["G.U.N.", "The Chaotix", "The Babylon Rogues"],
-        answer: "G.U.N.",
-        explanation: "Rouge works as a spy for the Guardian Units of Nations (G.U.N.), a military organization in the Sonic universe.",
-        references: ["Sonic Adventure 2 (2001)", "Sonic X (2003)"],
-        color: "#800080",
-        image: "https://cdn.discordapp.com/attachments/1343613169959960760/1351284868562161664/blinking-rouge-the-bat.gif?ex=67d9d19a&is=67d8801a&hm=b84dfd93e540f36d9a9adeda2900958f1783fc31f050dedeb07d6f4d57eb9e46&"
-    },
-    {
-        question: "What is the name of Amy Rose's signature weapon?",
-        options: ["Piko Piko Hammer", "Heartbreaker Mallet", "Rose Crusher"],
-        answer: "Piko Piko Hammer",
-        explanation: "Amy wields the Piko Piko Hammer, a large yet surprisingly lightweight weapon she uses in combat.",
-        references: ["Sonic the Fighters (1996)", "Sonic Adventure (1998)"],
-        color: "#FF66B2",
-        image: ""
-    },
-    {
-        question: "Which character is a detective and leads the Chaotix?",
-        options: ["Espio the Chameleon", "Vector the Crocodile", "Charmy Bee"],
-        answer: "Vector the Crocodile",
-        explanation: "Vector is the leader of Team Chaotix, a group of private detectives who take on various investigative cases.",
-        references: ["Knuckles' Chaotix (1995)", "Sonic Heroes (2003)"],
-        color: "#228B22",
-        image: ""
-    },
-    {
-        question: "Who is Silver the Hedgehog trying to save the future from?",
-        options: ["Iblis", "Dr. Eggman", "Dark Gaia"],
-        answer: "Iblis",
-        explanation: "Silver's future is devastated by Iblis, a destructive entity that he tries to prevent from being unleashed.",
-        references: ["Sonic the Hedgehog (2006)"],
-        color: "#C0C0C0",
-        image: ""
-    },
-    {
-        question: "What is Blaze the Cat's royal title?",
-        options: ["Princess", "Queen", "Guardian"],
-        answer: "Princess",
-        explanation: "Blaze is the princess and protector of the Sol Dimension, where she guards the Sol Emeralds.",
-        references: ["Sonic Rush (2005)", "Sonic Rush Adventure (2007)"],
-        color: "#9932CC",
-        image: ""
-    },
-    {
-        question: "Which character was originally created as a joke but became an official part of Sonic lore?",
-        options: ["Big the Cat", "Fang the Sniper", "Bean the Dynamite"],
-        answer: "Big the Cat",
-        explanation: "Big was created as a humorous character but became a recurring part of the Sonic franchise.",
-        references: ["Sonic Adventure (1998)", "Sonic Heroes (2003)"],
-        color: "#9370DB",
-        image: ""
-    },
-    {
-        question: "Who is the leader of the Babylon Rogues?",
-        options: ["Jet the Hawk", "Wave the Swallow", "Storm the Albatross"],
-        answer: "Jet the Hawk",
-        explanation: "Jet is the self-proclaimed 'Legendary Wind Master' and the leader of the Babylon Rogues, an air-riding gang.",
-        references: ["Sonic Riders (2006)"],
-        color: "#008000",
-        image: ""
-    },
-    {
-        question: "What does Dr. Eggman want to build?",
-        options: ["Eggmanland", "Robotropolis", "Metropolis Zone"],
-        answer: "Eggmanland",
-        explanation: "Eggman dreams of creating 'Eggmanland,' a city dedicated to his rule and mechanical designs.",
-        references: ["Sonic Unleashed (2008)"],
-        color: "#FF0000",
-        image: ""
-    },
-    {
-        question: "Which ancient race created the Chaos Emeralds?",
-        options: ["The Echidnas", "The Black Arms", "The Babylonians"],
-        answer: "The Echidnas",
-        explanation: "The ancient Echidnas of the Sonic world were the original protectors of the Chaos Emeralds.",
-        references: ["Sonic Adventure (1998)", "Sonic Chronicles: The Dark Brotherhood (2008)"],
-        color: "#8B0000",
-        image: ""
-    },
-    {
-        question: "Who was Mephiles the Dark a part of before he split?",
-        options: ["Solaris", "Dark Gaia", "Chaos"],
-        answer: "Solaris",
-        explanation: "Mephiles was one half of Solaris, the sun god of Soleanna, before being separated into his own entity.",
-        references: ["Sonic the Hedgehog (2006)"],
-        color: "#4B0082",
-        image: ""
-    },
-    {
-        question: "What is the name of Sonic's home planet?",
-        options: ["Mobius", "Earth", "Little Planet"],
-        answer: "Mobius",
-        explanation: "In the Archie Comics and older media, Sonic's world was called Mobius, though newer games suggest it's simply Earth.",
-        references: ["Adventures of Sonic the Hedgehog (1993)", "Archie Sonic the Hedgehog (1992)"],
-        color: "#1E90FF",
-        image: "https://cdn.discordapp.com/attachments/1343613169959960760/1351280482985316405/sonic.png?ex=67d9cd84&is=67d87c04&hm=f00b6b836be7ab42bd111729286624a1574e1fa92010513657c53c5cf3a41b96&"
-    }
-];
+const triviaQuestionsSonic = require('./sonic_quiz.js');
 
 const getTriviaEmbed = (questionData) => {
-
-    let embed = null;
-    if (!questionData.image || questionData.image === "") {
-        embed = new EmbedBuilder()
-            .setTitle("Sonic Trivia! (no photo yet 🖕)")
-            .setDescription(questionData.question)
-            .setColor(questionData.color)
-    }
-    else{
-        embed = new EmbedBuilder()
+    return new EmbedBuilder()
         .setTitle("Sonic Trivia!")
         .setDescription(questionData.question)
-        .setColor(questionData.color)
-        .setImage(questionData.image);
-        //.setThumbnail(questionData.image);
-        }
-    return embed;
+        .setColor(questionData.color);
 };
 
 const getTriviaButtons = (questionData) => {
+    const shuffledOptions = [...questionData.options].sort(() => Math.random() - 0.5);
     return new ActionRowBuilder().addComponents(
-        questionData.options.map((option, index) =>
+        shuffledOptions.map((option, index) =>
             new ButtonBuilder()
                 .setCustomId(`trivia_${index}`)
                 .setLabel(option)
@@ -213,91 +34,297 @@ const getTriviaButtons = (questionData) => {
     );
 };
 
-// Register Commands
-const commands = [
-    {
-        name: 'register',
-        description: 'Register a new user',
-        execute: async (interaction) => {
-            const image = await generateProfileImage(interaction.user);
-            await interaction.reply({ content: 'You are now registered!', files: [image], ephemeral: true });
-        }
-    },
-    {
-        name: 'profile',
-        description: 'View your profile',
-        execute: async (interaction) => {
-            await interaction.reply({ content: 'Here is your profile.', ephemeral: true });
-        }
-    },
-    {
-        name: 'quiz',
-        description: 'Test your Sonic knowledge!',
-        execute: async (interaction) => {
-            const questionData = triviaQuestions[Math.floor(Math.random() * triviaQuestions.length)];
+const readCSV = (filePath) => {
+    if (!fs.existsSync(filePath)) return [];
+    return fs.readFileSync(filePath, 'utf8').split('\n').filter(line => line.trim());
+};
+
+const writeCSV = (filePath, data) => {
+    fs.writeFileSync(filePath, data.join('\n'));
+};
+
+const registerUser = async (interaction) => {
+    const userId = interaction.user.id;
+    const registeredUsers = readCSV(REGISTERED_USERS_FILE);
+
+    if (registeredUsers.includes(userId)) {
+        return interaction.reply({ content: "✅ You are already registered!", ephemeral: true });
+    }
+
+    registeredUsers.push(userId);
+    writeCSV(REGISTERED_USERS_FILE, registeredUsers);
+
+    return interaction.reply({ content: "🎉 You are now registered for daily Sonic trivia!", ephemeral: true });
+};
+
+const unregisterUser = async (interaction) => {
+    const userId = interaction.user.id;
+    const registeredUsers = readCSV(REGISTERED_USERS_FILE);
+
+    if (!registeredUsers.includes(userId)) {
+        return interaction.reply({ content: "❌ You are not registered for daily trivia.", ephemeral: true });
+    }
+
+    const updatedUsers = registeredUsers.filter(id => id !== userId);
+    writeCSV(REGISTERED_USERS_FILE, updatedUsers);
+
+    return interaction.reply({ content: "👋 You have been unregistered from daily Sonic trivia.", ephemeral: true });
+};
+
+let globalQuestionData = null;
+
+const sendDailyQuiz = async () => {
+    const registeredUsers = readCSV(REGISTERED_USERS_FILE);
+    const questionData = triviaQuestionsSonic[Math.floor(Math.random() * triviaQuestionsSonic.length)];
+    globalQuestionData = questionData;
+
+    for (const userId of registeredUsers) {
+        try {
+            const user = await client.users.fetch(userId);
             const embed = getTriviaEmbed(questionData);
             const buttons = getTriviaButtons(questionData);
-
-            await interaction.reply({ embeds: [embed], components: [buttons], ephemeral: true });
-            client.triviaSessions.set(interaction.user.id, questionData);
+            await user.send({ embeds: [embed], components: [buttons] });
+        } catch (error) {
+            console.error(`❌ Failed to send quiz to ${userId}:`, error);
         }
-    }
-];
-
-commands.forEach(cmd => client.commands.set(cmd.name, cmd));
-
-// const deployCommands = async () => {
-//     try {
-//         console.log("🌐 Registering commands...");
-//         const rest = new REST({ version: '10' }).setToken(TOKEN);
-//         await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-//         console.log("✅ Commands registered globally!");
-//     } catch (error) {
-//         console.error("❌ Error registering commands:", error);
-//     }
-// };
-
-const deployCommands = async () => {
-    try {
-        const GUILD_ID = '1233574240511594587'; // Your target guild ID
-        console.log(`🌐 Registering commands for guild ${GUILD_ID}...`);
-
-        const rest = new REST({ version: '10' }).setToken(TOKEN);
-        await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
-
-        console.log("✅ Commands registered for the specific guild!");
-    } catch (error) {
-        console.error("❌ Error registering commands:", error);
     }
 };
 
+// Define the profile command
+const profile = async (interaction) => {
+    const userId = interaction.user.id;
+    const user = interaction.user;
 
-// Handle Slash Commands
-client.on('interactionCreate', async interaction => {
-    if (interaction.isCommand()) {
-        const command = client.commands.get(interaction.commandName);
-        if (command) {
-            try {
-                await command.execute(interaction);
-            } catch (error) {
-                console.error(`❌ Error executing /${interaction.commandName}:`, error);
-                await interaction.reply({ content: '⚠️ An error occurred while executing this command.', ephemeral: true });
-            }
-        }
-    } else if (interaction.isButton()) {
-        handleButtonInteraction(interaction);
+    // Check if user is registered
+    const registeredUsers = readCSV(REGISTERED_USERS_FILE);
+    if (!registeredUsers.includes(userId)) {
+        return interaction.reply({
+            content: "❌ You need to register for Sonic Trivia first! Use `/register` to join.",
+            ephemeral: true
+        });
     }
-});
 
-// Handle Button Events
+    // Get user profile data
+    const profileData = getUserProfileData(userId);
+
+    // Get global ranking
+    const ranking = getGlobalRanking(userId);
+
+    // Generate fun fact based on streak
+    const funFact = generateFunFact(profileData.currentStreak);
+
+    // Create embed
+    const embed = new EmbedBuilder()
+        .setTitle(`${user.displayName}'s Sonic Trivia Profile`)
+        .setColor('#1E90FF')
+        .setThumbnail(user.displayAvatarURL({ dynamic: true }))
+        .addFields(
+            { name: '📊 Score', value: `${profileData.currentScore} points`, inline: true },
+            { name: '🏆 Global Rank', value: `#${ranking}`, inline: true },
+            { name: '🔥 Current Streak', value: `${profileData.currentStreak} days`, inline: true },
+            { name: '⭐ Best Streak', value: `${profileData.biggestStreak} days`, inline: true },
+            { name: '📅 Registered', value: `<t:${Math.floor(profileData.registrationDate / 1000)}:R>`, inline: true },
+            { name: '✓ Completion Rate', value: `${calculateCompletionRate(profileData)}%`, inline: true },
+            { name: '🦔 Fun Fact', value: funFact }
+        )
+        .setFooter({ text: 'Keep answering daily trivia to improve your stats!' })
+        .setTimestamp();
+
+    return interaction.reply({ embeds: [embed] });
+};
+
+// Function to get user profile data
+const getUserProfileData = (userId) => {
+    const profiles = readProfilesCSV();
+    let profile = profiles.find(p => p.userId === userId);
+
+    if (!profile) {
+        // Create new profile if not found
+        profile = {
+            userId: userId,
+            currentScore: 0,
+            biggestStreak: 0,
+            currentStreak: 0,
+            registrationDate: Date.now(),
+            completedDates: [],
+            failedDates: []
+        };
+
+        // Save new profile
+        saveProfileData(profile);
+    }
+
+    return profile;
+};
+
+// Read profiles CSV
+const readProfilesCSV = () => {
+    const PROFILES_FILE = path.join(__dirname, 'user_profiles.csv');
+    if (!fs.existsSync(PROFILES_FILE)) {
+        fs.writeFileSync(PROFILES_FILE, 'userId,currentScore,biggestStreak,currentStreak,registrationDate,completedDates,failedDates');
+        return [];
+    }
+
+    const lines = fs.readFileSync(PROFILES_FILE, 'utf8').split('\n').filter(line => line.trim());
+    const headers = lines[0].split(',');
+
+    return lines.slice(1).map(line => {
+        const values = line.split(',');
+        const profile = {};
+
+        headers.forEach((header, index) => {
+            if (header === 'completedDates' || header === 'failedDates') {
+                profile[header] = values[index] ? values[index].split(';') : [];
+            } else if (header === 'currentScore' || header === 'biggestStreak' || header === 'currentStreak') {
+                profile[header] = parseInt(values[index] || '0');
+            } else if (header === 'registrationDate') {
+                profile[header] = parseInt(values[index] || Date.now());
+            } else {
+                profile[header] = values[index];
+            }
+        });
+
+        return profile;
+    });
+};
+
+// Save profile data
+const saveProfileData = (profileData) => {
+    const PROFILES_FILE = path.join(__dirname, 'user_profiles.csv');
+    const profiles = readProfilesCSV();
+
+    // Update or add profile
+    const existingIndex = profiles.findIndex(p => p.userId === profileData.userId);
+    if (existingIndex >= 0) {
+        profiles[existingIndex] = profileData;
+    } else {
+        profiles.push(profileData);
+    }
+
+    // Convert to CSV format
+    const headers = ['userId', 'currentScore', 'biggestStreak', 'currentStreak', 'registrationDate', 'completedDates', 'failedDates'];
+    const csvLines = [
+        headers.join(','),
+        ...profiles.map(profile => {
+            return headers.map(header => {
+                if (header === 'completedDates' || header === 'failedDates') {
+                    return profile[header].join(';');
+                } else {
+                    return profile[header];
+                }
+            }).join(',');
+        })
+    ];
+
+    fs.writeFileSync(PROFILES_FILE, csvLines.join('\n'));
+};
+
+// Get global ranking
+const getGlobalRanking = (userId) => {
+    const profiles = readProfilesCSV();
+
+    // Sort profiles by score (descending)
+    const sortedProfiles = [...profiles].sort((a, b) => b.currentScore - a.currentScore);
+
+    // Find user's rank
+    const rank = sortedProfiles.findIndex(p => p.userId === userId) + 1;
+    return rank || profiles.length;
+};
+
+// Calculate completion rate
+const calculateCompletionRate = (profileData) => {
+    const total = profileData.completedDates.length + profileData.failedDates.length;
+    if (total === 0) return 0;
+
+    return Math.round((profileData.completedDates.length / total) * 100);
+};
+
+function sonicLapsAroundEarth(days) {
+    const sonicSpeed = 1225; // km/h (Mach 1, speed of sound)
+    const hoursPerDay = 24;
+    const earthCircumference = 40075; // km
+
+    const laps = (sonicSpeed * hoursPerDay * days) / earthCircumference;
+    return laps.toFixed(2); // Rounds to 2 decimal places
+}
+
+// Generate fun fact based on streak
+const generateFunFact = (streak) => {
+    const facts = [
+        `If Sonic had the same amount of rings as your daily streak (${streak}), he'd be ${streak === 0 ? "dead!" : "just getting started!"}`,
+        `Your streak of ${streak} is ${streak > 10 ? "more impressive than" : "working towards matching"} Knuckles' ${streak > 10 ? "dedication!" : "guardian duty!"}`,
+        `With ${streak} correct answers, you've collected ${streak} Chaos Emerald${streak !== 1 ? "s" : ""}! ${streak >= 7 ? "You can now go Super!" : `Only ${7 - streak} more to go!`}`,
+        `Dr. Eggman would need ${streak} more robots to stand a chance against your trivia knowledge!`,
+        `Your ${streak} day streak is ${streak > 5 ? "faster than" : "not quite as fast as"} Sonic's top speed!`,
+        `${streak} days? Sonic has barely stretched his legs! He’s only made it around the Earth ${sonicLapsAroundEarth(streak)} times. Step it up!`
+    ];
+
+    const mockingFacts = [
+        `🥚 A ${streak}-day streak? Even Big the Cat has better luck catching Froggy than that!`,
+        `🥚 With just ${streak} days, you're making even Eggman’s robots look more reliable!`,
+        `🥚 Your streak is at ${streak}... Tails' dummy ring bombs last longer than that!`,
+        `🥚 Only ${streak} days? Even Orbot and Cubot have a better success rate!`,
+        `🥚 With a streak of ${streak}, you're barely keeping up with a Chao in a slow race!`,
+        `🥚 Even a Motobug lasts longer in Green Hill Zone than your ${streak}-day streak!`,
+        `🥚 Your streak is at ${streak}? Even Eggman’s plans take longer to fail!`,
+    ];
+
+
+    // Return random fact
+    if (streak <= 2 && Math.floor(Math.random() * 10) === 6 ){
+        return mockingFacts[Math.floor(Math.random() * mockingFacts.length)];
+    }
+    return facts[Math.floor(Math.random() * facts.length)];
+};
+
+// Update the updateUserScore function to update profile data
+const updateUserScore = (userId, isCorrect = true) => {
+    // Get profile data
+    const profileData = getUserProfileData(userId);
+    const today = new Date().toISOString().slice(0, 10);
+
+    if (isCorrect) {
+        // Update score
+        profileData.currentScore++;
+
+        // Update streak
+        profileData.currentStreak++;
+        if (profileData.currentStreak > profileData.biggestStreak) {
+            profileData.biggestStreak = profileData.currentStreak;
+        }
+
+        // Add to completed dates
+        if (!profileData.completedDates.includes(today)) {
+            profileData.completedDates.push(today);
+        }
+    } else {
+        // Reset streak on wrong answer
+        profileData.currentStreak = 0;
+
+        // Add to failed dates
+        if (!profileData.failedDates.includes(today)) {
+            profileData.failedDates.push(today);
+        }
+    }
+
+    // Save profile data
+    saveProfileData(profileData);
+};
+
+// Modify handleButtonInteraction to update score based on answer correctness
 const handleButtonInteraction = async (interaction) => {
     if (interaction.customId.startsWith("trivia_")) {
-        const questionData = client.triviaSessions.get(interaction.user.id);
-        if (!questionData) return;
+        const questionData = globalQuestionData;
+        if (!questionData) {
+            await interaction.reply({ content: "⚠️ No active trivia question found.", ephemeral: true });
+            return;
+        }
 
-        const selectedIndex = parseInt(interaction.customId.split("_")[1]);
-        const selectedAnswer = questionData.options[selectedIndex];
+        const selectedAnswer = interaction.component.label;
         const isCorrect = selectedAnswer === questionData.answer;
+
+        // Update user score
+        updateUserScore(interaction.user.id, isCorrect);
 
         const embed = getTriviaEmbed(questionData)
             .setDescription(`**${questionData.question}**\n\nYour Answer: ${selectedAnswer}\n\n${isCorrect ? "✅ Correct!" : `❌ Wrong! The correct answer was: ${questionData.answer}`}`)
@@ -307,28 +334,49 @@ const handleButtonInteraction = async (interaction) => {
             );
 
         await interaction.update({ embeds: [embed], components: [] });
-        client.triviaSessions.delete(interaction.user.id);
     }
 };
 
-// Send a Direct Message via Cron Job
-const sendDMJob = new CronJob('0 12 * * *', async () => {  // Runs every day at noon
-    const userId = process.env.TARGET_USER_ID;
-    if (!userId) return;
-    try {
-        const user = await client.users.fetch(userId);
-        await user.send("📩 This is your scheduled daily message!");
-        console.log(`✅ Sent DM to ${user.username}`);
-    } catch (error) {
-        console.error("❌ Failed to send DM:", error);
+const commands = [
+    { name: 'register', description: 'Register for daily trivia', execute: registerUser },
+    { name: 'unregister', description: 'Unregister from daily trivia', execute: unregisterUser },
+    { name: 'profile', description: 'View your Sonic Trivia profile and stats', execute: profile }
+];
+
+commands.forEach(cmd => client.commands.set(cmd.name, cmd));
+
+client.on('interactionCreate', async interaction => {
+    if (interaction.isCommand()) {
+        const command = client.commands.get(interaction.commandName);
+        if (command) await command.execute(interaction);
     }
-}, null, true, 'UTC');
+    else if (interaction.isButton()) {
+        await handleButtonInteraction(interaction);
+    }
+});
+
+//const sendDMJob = new CronJob('0 13 * * *', sendDailyQuiz, null, true, SLOVENIA_TIMEZONE);
+const sendDMJob = new CronJob('* * * * *', sendDailyQuiz, null, true, SLOVENIA_TIMEZONE);
 
 client.once('ready', async () => {
     console.log(`🤖 Logged in as ${client.user.tag}!`);
-    await deployCommands();
+    await client.application.commands.set(commands);
     sendDMJob.start();
-    console.log("🎯 DM Cron job scheduled!");
+
+    const guild = client.guilds.cache.get('1233574240511594587');
+    if (!guild) {
+        console.log("❌ Bot is not in the specified guild.");
+        return;
+    }
+
+    await guild.commands.set(commands);
+    console.log("✅ Guild-specific commands registered!");
 });
 
-client.login(TOKEN);
+client.login(process.env.TOKEN);
+
+//TODO: add disclaimer for users that some info might be incorrect, add a report button and add it to msg server
+//TODO: add scoreboard
+//TODO: add photos and questions
+//TODO: add system that checks if user is in game
+//TODO: add system that removes embed colors when they could hint the answer

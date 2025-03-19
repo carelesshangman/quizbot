@@ -1,5 +1,6 @@
 # Node modules
 node_modules/
-
+user_profiles.csv
+registered_users.csv
 # Environment variables file
 .env
