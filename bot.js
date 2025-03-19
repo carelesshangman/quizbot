@@ -240,12 +240,12 @@ const calculateCompletionRate = (profileData) => {
 };
 
 function sonicLapsAroundEarth(days) {
-    const sonicSpeed = 1225; // km/h (Mach 1, speed of sound)
+    const sonicSpeed = 1225;
     const hoursPerDay = 24;
-    const earthCircumference = 40075; // km
+    const earthCircumference = 40075;
 
     const laps = (sonicSpeed * hoursPerDay * days) / earthCircumference;
-    return laps.toFixed(2); // Rounds to 2 decimal places
+    return laps.toFixed(2);
 }
 
 // Generate fun fact based on streak
@@ -355,8 +355,8 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-//const sendDMJob = new CronJob('0 13 * * *', sendDailyQuiz, null, true, SLOVENIA_TIMEZONE);
-const sendDMJob = new CronJob('* * * * *', sendDailyQuiz, null, true, SLOVENIA_TIMEZONE);
+const sendDMJob = new CronJob('0 13 * * *', sendDailyQuiz, null, true, SLOVENIA_TIMEZONE);
+//const sendDMJob = new CronJob('* * * * *', sendDailyQuiz, null, true, SLOVENIA_TIMEZONE);
 
 client.once('ready', async () => {
     console.log(`🤖 Logged in as ${client.user.tag}!`);
