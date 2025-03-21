@@ -1244,6 +1244,7 @@ client.on("error", console.error);
 client.commands = new Collection();
 
 commands.forEach(cmd => client.commands.set(cmd.name, cmd));
+commands.forEach(cmd => client.application.commands.set(cmd.name, cmd));
 
 console.log("📜 Commands loaded:", client.commands.keys());
 
