@@ -1244,13 +1244,13 @@ client.on("error", console.error);
 client.commands = new Collection();
 
 commands.forEach(cmd => client.commands.set(cmd.name, cmd));
-client.application.commands.set(commands);
-
+commands.forEach(cmd => client.application.commands.create(cmd))
 console.log("📜 Commands loaded:", client.commands.keys());
 
 client.once('ready', async () => {
     console.log(`🤖 Logged in as ${client.user.tag}!`);
     await client.application.commands.set(commands);
+
     //sendScoreboardJob.start();
     sendDMJob.start();
     console.log("✅ Guild-specific commands registered!");
