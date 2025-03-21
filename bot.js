@@ -1250,9 +1250,11 @@ client.once('ready', async () => {
     console.log(`🤖 Logged in as ${client.user.tag}!`);
     await client.application.commands.set(commands);
 
+    const globalCommands = await client.application.commands.fetch();
+    console.log("🌍 Global Commands:", globalCommands.map(cmd => cmd.name));
+
     //sendScoreboardJob.start();
     sendDMJob.start();
-    console.log("✅ Guild-specific commands registered!");
 });
 
 client.login(process.env.TOKEN);
