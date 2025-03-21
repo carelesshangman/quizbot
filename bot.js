@@ -1071,6 +1071,7 @@ if(process.env.LOCAL==="true"){
 }
 
 client.on('interactionCreate', async interaction => {
+    console.log('interactionCreate', interaction);
     if (interaction.isCommand()) {
         const command = client.commands.get(interaction.commandName);
         if (command) await command.execute(interaction);
