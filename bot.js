@@ -850,6 +850,7 @@ const updateUserScore = (userId, isCorrect = true) => {
 
 // Modify handleButtonInteraction to update score based on answer correctness
 const handleButtonInteraction = async (interaction) => {
+    console.log(interaction);
     if (interaction.customId.startsWith("register_button")) {
         await registerUser(interaction);
     }
