@@ -1063,14 +1063,11 @@ let commands = [
     { name: 'chao', description: 'View Chao Garden statistics', execute: chao }
 ];
 
-if(process.env.TOKEN.startsWith("MTM0")){
+if(process.env.LOCAL==="true"){
     commands.push(
         { name: 'listquestions', description: 'List all trivia questions with their indices', execute: listQuestions }
     )
 }
-
-
-commands.forEach(cmd => client.commands.set(cmd.name, cmd));
 
 client.on('interactionCreate', async interaction => {
     if (interaction.isCommand()) {
