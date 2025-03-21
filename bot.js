@@ -1086,9 +1086,9 @@ client.on('interactionCreate', async interaction => {
 //     sendDailyQuiz
 // }
 
-let sendDMJob = new CronJob('3 * * * *', sendDailyQuiz, null, true, SLOVENIA_TIMEZONE);
+let sendDMJob;
 
-if (process.env.local === "false") {
+if (process.env.LOCAL === "false") {
     sendDMJob = new CronJob('0 13 * * *', sendDailyQuiz, null, true, SLOVENIA_TIMEZONE);
 }
 else{
@@ -1219,8 +1219,9 @@ app.post('/discord-webhook', (req, res) => {
 });
 
 const PORT = 5000;
+console.log(process.env.LOCAL)
 async function startNgrok() {
-    if (process.env.local === "false") {
+    if (process.env.LOCAL === "false") {
         console.log("🌍 Production environment detected. Skipping ngrok tunnel.");
         return;
     }
