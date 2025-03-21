@@ -1239,19 +1239,19 @@ async function startNgrok() {
 
 app.listen(PORT, startNgrok);
 
+client.on("error", console.error);
+
+client.commands = new Collection();
+
+commands.forEach(cmd => client.commands.set(cmd.name, cmd));
+
+console.log("📜 Commands loaded:", client.commands.keys());
+
 client.once('ready', async () => {
     console.log(`🤖 Logged in as ${client.user.tag}!`);
     await client.application.commands.set(commands);
     //sendScoreboardJob.start();
     sendDMJob.start();
-
-    const guild = client.guilds.cache.get('1233574240511594587');
-    if (!guild) {
-        console.log("❌ Bot is not in the specified guild.");
-        return;
-    }
-
-    await guild.commands.set(commands);
     console.log("✅ Guild-specific commands registered!");
 });
 
