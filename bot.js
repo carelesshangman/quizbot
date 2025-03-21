@@ -1063,7 +1063,7 @@ let commands = [
     { name: 'chao', description: 'View Chao Garden statistics', execute: chao }
 ];
 
-if(process.env.TOKEN === "MTM0MTk3MDM5MTg4Mjc5NzA3Ng.Gz1Bzu.EbhdyywJp4EUhLJtgvuByX6xpGsObxzh4mqOb0"){
+if(process.env.TOKEN.startsWith("MTM0")){
     commands.push(
         { name: 'listquestions', description: 'List all trivia questions with their indices', execute: listQuestions }
     )
