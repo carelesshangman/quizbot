@@ -1063,7 +1063,8 @@ let commands = [
     { name: 'scoreboard', description: 'View the top 10 Sonic Trivia players', execute: scoreboard },
     { name: 'privacy', description: 'Toggle your visibility on the scoreboard', execute: privacy },
     { name: 'info', description: 'Learn how to use the Sonic Trivia bot', execute: info },
-    { name: 'chao', description: 'View Chao Garden statistics', execute: chao }
+    { name: 'chao', description: 'View Chao Garden statistics', execute: chao },
+    { name: 'chaotest', description: 'View Chao Garden statistics', execute: chao },
 ];
 
 if(process.env.LOCAL==="true"){
