@@ -926,6 +926,8 @@ const handleButtonInteraction = async (interaction) => {
 };
 
 const chao = async (interaction) => {
+    console.log("✅ /chao command executed!");
+    console.log("Interaction details:", interaction);
     const userId = interaction.user.id;
     const stats = getChaoStats();
     const visual = generateChaoVisual(stats);
