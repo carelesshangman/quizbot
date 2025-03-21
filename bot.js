@@ -1073,7 +1073,9 @@ if(process.env.LOCAL==="true"){
 client.on('interactionCreate', async interaction => {
     console.log('interactionCreate', interaction);
     if (interaction.isCommand()) {
+        console.log("it is a command");
         const command = client.commands.get(interaction.commandName);
+        console.log(command);
         if (command) await command.execute(interaction);
     }
     else if (interaction.isButton()) {
